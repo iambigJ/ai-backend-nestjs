@@ -1,0 +1,107 @@
+version: '3'
+services:
+  app-dev:
+    image: nevise-negar-dev
+    restart: always
+    container_name: nevise-negar-dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    networks:
+      - net
+    volumes:
+      - "/opt/nevise-negar/storage:/usr/src/app/storage"
+      - "/opt/nevise-negar/tmp:/usr/src/app/tmp"
+      - ".:/usr/src/app"
+    env_file:
+      - backend.env
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    ports:
+      - "3000:3000"
+    command: yarn start:dev
+  app:
+    image: nevise-negar
+    restart: always
+    container_name: nevise-negar
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - net
+    volumes:
+      - "/opt/nevise-negar/storage:/app/storage"
+      - "/opt/nevise-negar/tmp:/app/tmp"
+    env_file:
+      - backend.env
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+
+  redis:
+    image: redis
+    restart: always
+    volumes:
+      - /opt/nevise-negar/redis:/data
+    networks:
+      - net
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    networks:
+      - net
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    ports:
+      - "5151:80"
+
+  postgres:
+    image: postgres
+    container_name: ocr_postgres
+    restart: always
+    networks:
+      - net
+    environment:
+      POSTGRES_PASSWORD: postgres
+      
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - /opt/nevise-negar/potgresql:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=root
+      - RABBITMQ_DEFAULT_PASS=root
+    ports:
+      - 25672:15672
+    restart: always
+    networks:
+      - net
+
+  web-server:
+    image: openresty
+    build: 
+      context: ./web-server
+      dockerfile: Dockerfile
+    container_name: openresty
+    restart: always
+    ports:
+      - "5000:80"
+    volumes:
+      - ./web-server/conf/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
+      - ./web-server/scripts:/usr/local/openresty/nginx/scripts
+      - /opt/nevise-negar/storage:/opt/storage
+    command: openresty -g 'daemon off;'
+    networks:
+      - net
+
+networks:
+  net:
+
